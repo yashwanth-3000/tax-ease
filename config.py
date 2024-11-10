@@ -1,34 +1,21 @@
 # config.py
 class Config:
-    # App Settings
-    APP_NAME = "Tax Filing Assistant"
+    # Application settings
+    APP_NAME = "Tax Filing Application"
     APP_ICON = "📊"
     
-    # Environment
-    ENVIRONMENT = "development"  # or "production"
-    
-    # Theme Colors
-    THEME_PRIMARY_COLOR = "#1a1a1a"
-    THEME_SECONDARY_COLOR = "#2d2d2d"
-    THEME_ACCENT_COLOR = "#4CAF50"
+    # Theme settings
+    THEME_PRIMARY_COLOR = "#000000"
+    THEME_SECONDARY_COLOR = "#1a1a1a"
+    THEME_ACCENT_COLOR = "#ff0000"
     THEME_TEXT_COLOR = "#ffffff"
     
-    # Grid Layout
+    # Grid layout settings
     GRID_COLUMNS = 3
-    GRID_SPACING = "1rem"
+    GRID_SPACING = "2rem"
     
-    # Form Categories
-    FORM_CATEGORIES = [
-        "Income Tax",
-        "Business Tax",
-        "Property Tax",
-        "Sales Tax",
-        "Other Forms"
-    ]
+    # Form settings
+    FORMS_PER_PAGE = 9
     
-    # Search Settings
-    SEARCH_MIN_CHARS = 2
-    
-    # Development Settings
-    DEBUG = True
-    MOCK_DATA = True
+    # Search settings
+    SEARCH_DEBOUNCE_MS = 300

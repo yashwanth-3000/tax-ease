@@ -8,6 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from utils.styles import get_custom_css
 from utils.data import FormData
 from utils.questionnaire import get_questionnaire_content, determine_itr
+from utils.form_interface import display_form_interface
 from config import Config
 
 def init_session_state():
@@ -24,6 +25,13 @@ def init_session_state():
         st.session_state.answers = {}
     if 'show_result' not in st.session_state:
         st.session_state.show_result = False
+    # New session states for form filling interface
+    if 'show_form_interface' not in st.session_state:
+        st.session_state.show_form_interface = False
+    if 'current_form' not in st.session_state:
+        st.session_state.current_form = None
+    if 'chat_messages' not in st.session_state:
+        st.session_state.chat_messages = []
 
 def create_hero_section():
     """Create the hero section of the application"""
@@ -113,6 +121,10 @@ def display_form_grid(forms):
     if st.session_state.show_questionnaire:
         display_questionnaire()
         return
+        
+    if st.session_state.show_form_interface:
+        display_form_interface(st.session_state.current_form)
+        return
 
     filtered_forms = FormData.search_forms(st.session_state.search_query, forms)
 
@@ -144,18 +156,14 @@ def display_form_grid(forms):
                 </div>
             """, unsafe_allow_html=True)
             
-            # Button below the card
-            st.markdown(f"""
-                <div class="button-wrapper">
-                    <button class="fill-button" onclick="parent.postMessage({{action: 'fill', formId: '{filtered_forms[i]['id']}'}}, '*')">
-                        Fill {filtered_forms[i]['name']}
-                    </button>
-                </div>
-            """, unsafe_allow_html=True)
-    
+            # Modified button to trigger form interface
+            if st.button(f"Fill {filtered_forms[i]['name']}", key=f"fill_{filtered_forms[i]['id']}"):
+                st.session_state.show_form_interface = True
+                st.session_state.current_form = filtered_forms[i]
+                st.rerun()
+
     # Add special card if we have exactly 7 forms
     if total_forms == 7:
-        # Take the last two columns for the special card
         with cols[1]:
             st.markdown("""
                 <div class="form-card special-card">
@@ -170,7 +178,6 @@ def display_form_grid(forms):
                 </div>
             """, unsafe_allow_html=True)
             
-            # Button for questionnaire
             if st.button("Start Questionnaire", key="start_questionnaire", type="primary", use_container_width=True):
                 st.session_state.show_questionnaire = True
                 st.rerun()
@@ -185,9 +192,11 @@ def main():
     
     init_session_state()
     st.markdown(get_custom_css(), unsafe_allow_html=True)
-    create_hero_section()
     
-    if not st.session_state.show_questionnaire:
+    if not st.session_state.show_form_interface:
+        create_hero_section()
+    
+    if not st.session_state.show_questionnaire and not st.session_state.show_form_interface:
         create_search_bar()
     
     forms = FormData.get_sample_forms()

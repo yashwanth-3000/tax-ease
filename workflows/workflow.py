@@ -1,12 +1,15 @@
 from datetime import timedelta
 from restack_ai.workflow import workflow, import_functions
-from restack_ai import log
+#from restack_ai import log
 from dataclasses import dataclass
 from typing import List, Dict
+import logging as log
+
 
 # Import the necessary functions
 with import_functions():
-    from functions.function import llm_complete, query_guideline, FunctionInputParams
+    from functions.function import llm_complete, FunctionInputParams
+    from functions.query_guidelines import  query_guidelines
 
 @dataclass
 class WorkflowInputParams:
@@ -37,14 +40,14 @@ class SearchAndProcessWorkflow:
         
         # Step 3: Create prompt for LLM with search results
         prompt = f"""
-Based on the following search results:
+        Based on the following search results:
 
-{formatted_context}
+        {formatted_context}
 
-User Query: {input.query_text}
+        User Query: {input.query_text}
 
-Please analyze these guidelines and provide a comprehensive response addressing the query.
-"""
+        Please analyze these guidelines and provide a comprehensive response addressing the query.
+        """
         
         # Step 4: Process with LLM
         llm_result = await workflow.step(

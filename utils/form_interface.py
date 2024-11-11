@@ -1,17 +1,45 @@
 import streamlit as st
 import base64
 import os
+import requests
+from dataclasses import dataclass
+import logging as log
+
+# Configure logging
+log.basicConfig(level=log.INFO)
+
+@dataclass
+class FunctionInputParams:
+    query_text: str = ""
+    collection_name: str = "itr1"
+    limit: int = 5
+    prompt: str = ""
+
+def call_api(query_text: str, collection_name: str = "itr1", limit: int = 5):
+    """Make API call to the Flask backend"""
+    try:
+        response = requests.post(
+            "http://localhost:5050/api/schedule",
+            json={
+                "query_text": query_text,
+                "collection_name": collection_name,
+                "limit": limit
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        log.error(f"API call failed: {str(e)}")
+        raise Exception(f"Failed to get response from API: {str(e)}")
 
 def display_form_interface(form_data):
-    # Custom CSS for the interface
+    # Custom CSS
     st.markdown("""
         <style>
-            /* Make message text brighter */
             .stChatMessage {
                 color: #FFFFFF !important;
             }
             
-            /* PDF container style */
             .pdf-container {
                 width: 100%;
                 height: 80vh;
@@ -21,13 +49,11 @@ def display_form_interface(form_data):
                 padding: 10px;
             }
             
-            /* Chat message styling */
             .chat-message {
                 display: flex;
                 margin: 10px 0;
             }
             
-            /* Ensure iframe takes full width */
             iframe {
                 width: 100%;
                 height: 100%;
@@ -37,72 +63,90 @@ def display_form_interface(form_data):
         </style>
     """, unsafe_allow_html=True)
 
-    # Title
     st.title(form_data['name'])
 
-    # Create two columns
     col1, col2 = st.columns(2)
 
-    # Left column - Scrollable PDF Viewer
+    # PDF Viewer
     with col1:
-        # Use os.path.join to handle file paths correctly across platforms
-        pdf_path = os.path.join('data', 'forms', 'ITR-1.pdf')  # Replace with your specific path
+        pdf_path = os.path.join('data', 'forms', 'ITR-1.pdf')
         try:
             with open(pdf_path, "rb") as f:
                 base64_pdf = base64.b64encode(f.read()).decode('utf-8')
-            # Embed PDF using base64
             pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="100%"></iframe>'
             st.markdown(f'<div class="pdf-container">{pdf_display}</div>', unsafe_allow_html=True)
         except FileNotFoundError:
             st.error("PDF file not found. Please check the file path.")
         except Exception as e:
-            st.error(f"An error occurred: {e}")
+            st.error(f"Error loading PDF: {str(e)}")
 
-    # Right column - Chat Interface
+    # Chat Interface
     with col2:
         chat_container = st.container()
         with chat_container:
             st.title("Chat Assistant")
             
-            # Create a fixed height box for messages
             messages_container = st.container()
             
-            # Initialize messages if not exists
+            # Initialize messages
             if "messages" not in st.session_state:
                 st.session_state.messages = [{
                     "role": "assistant",
                     "content": """Welcome! For filing ITR-1 Sahaj, please keep these documents ready:
                     
-• PAN Card
-• Aadhaar Card
-• Form 16 from your employer
-• Bank statements
-• Rent receipts (if claiming HRA)
-• Investment proofs (80C, 80D)
-• Interest certificates
+                    • PAN Card
+                    • Aadhaar Card
+                    • Form 16 from your employer
+                    • Bank statements
+                    • Rent receipts (if claiming HRA)
+                    • Investment proofs (80C, 80D)
+                    • Interest certificates
                     
-How can I help you with the form today?"""
+                    How can I help you with the form today?"""
                 }]
             
-            # Chat input should be defined before messages display
-            user_input = st.chat_input("Type your message...")
-            
-            # Display messages in a scrollable container
+            # Display messages
             with messages_container:
                 for message in st.session_state.messages:
                     with st.chat_message(message["role"]):
                         st.write(message["content"])
+            
+            # Chat input
+            user_input = st.chat_input("Type your message...")
 
             # Handle user input
             if user_input:
-                # Add user message
+                # Show user message
                 st.session_state.messages.append({"role": "user", "content": user_input})
-                # Add assistant response
-                st.session_state.messages.append({
-                    "role": "assistant", 
-                    "content": f"I'll help you with filling {form_data['name']}. What specific field do you need help with?"
-                })
-                st.rerun()
+                
+                with st.spinner("Processing your query..."):
+                    try:
+                        # Call the API
+                        result = call_api(
+                            query_text=user_input,
+                            collection_name="itr1",
+                            limit=5
+                        )
+                        
+                        if result and "result" in result and "llm_response" in result["result"]:
+                            assistant_response = result["result"]["llm_response"]
+                            # Add assistant response to chat
+                            st.session_state.messages.append({
+                                "role": "assistant",
+                                "content": assistant_response
+                            })
+                        else:
+                            st.session_state.messages.append({
+                                "role": "assistant",
+                                "content": "I apologize, but I couldn't process your query. Please try again."
+                            })
+                    except Exception as e:
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": f"An error occurred: {str(e)}. Please try again."
+                        })
+                        
+                    st.rerun()
 
         # Back button
         if st.button("← Back to Forms", use_container_width=True):
@@ -110,3 +154,11 @@ How can I help you with the form today?"""
             st.session_state.current_form = None
             st.session_state.messages = []
             st.rerun()
+
+if __name__ == "__main__":
+    form_data = {
+        "name": "ITR-1 Sahaj Form Assistant"
+    }
+    
+    # Start the interface
+    display_form_interface(form_data)
